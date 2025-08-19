@@ -161,7 +161,7 @@ liminal-firmware/
 
 ### Adding New Sensors
 
-1. Create sensor-specific initialization code
+1. Create sensor-specific initialisation code
 2. Implement data reading functions
 3. Update the JSON payload structure
 4. Add sensor detection logic
@@ -195,14 +195,9 @@ Enable verbose logging by modifying the serial output statements in `main.cpp`.
 4. Test with hardware
 5. Submit a pull request
 
-## License
-
-[License information to be added]
-
 ## Related Projects
 
-- **Liminal Engine**: Rust-based data transformation pipeline
-- **Property Monitor**: Erlang-based monitoring system
+- **Liminal Engine**: [Rust-based data transformation pipeline](https://github.com/keithbugeja/liminal) 
 
 ---
 
