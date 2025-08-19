@@ -125,18 +125,19 @@ This firmware acts as a data source for Liminal's input stages. The MQTT-publish
 
 ### Example Liminal Pipeline
 
-```rust
-// Conceptual Liminal pipeline configuration
-pipeline {
-    input: mqtt_subscriber("sensors/mpu6500/accelerometer"),
-    transform: [
-        filter_noise(),
-        scale_sensitivity(),
-        orientation_correct()
-    ],
-    aggregate: motion_detection(),
-    output: erlang_monitor_notify()
-}
+```TOML
+# Liminal pipeline configuration with an input source (MQTT) and an output sink (console)
+[inputs.mqtt_acceleration]
+type = "mqtt_sub"
+output = "raw_acceleration_data"
+concurrency = { type = "thread" }
+channel = { type = "broadcast", capacity = 256 }
+parameters = { broker_url = "mqtt://localhost:1883", topics = ["sensors/mpu6500/accelerometer"], client_id = "test_mqtt_input", qos = 0, clean_session = true, username = "", password = "" }
+
+# Outputs: External data sinks
+[outputs.log_output]
+type = "console"
+inputs = ["raw_acceleration_data"]
 ```
 
 ## Project Structure
