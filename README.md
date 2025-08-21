@@ -119,14 +119,24 @@ The firmware publishes sensor data to MQTT in JSON format:
 ```json
 {
   "timestamp": 12345678,
-  "device_id": "ESP32-MPU6500",
-  "sensor_type": "MPU6500",
+  "device_id": "$DEVICE_ID",
+  "sensor_name":"main_imu",
+  "sensor_type":"imu",
+  "imu_type":"MPU6500",
   "accelerometer": {
     "x": 0.123,
     "y": -0.456,
     "z": 9.789,
     "unit": "g"
-  }
+  },
+  "gyroscope": {
+    "x": -0.231,
+    "y": 0.156,
+    "z": 0.789,
+    "unit":"°/s"
+  },
+  "temperature": 25.4,
+  "temperature_unit":"°C"  
 }
 ```
 
