@@ -1,0 +1,22 @@
+# Build artifacts
+.pio
+build/
+dist/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local configuration files (if you create config-local.h or similar)
+esp32/src/config/config-local.h
+esp32/src/config/config.local.h
+
+# Temporary files
+*.tmp
+*.log

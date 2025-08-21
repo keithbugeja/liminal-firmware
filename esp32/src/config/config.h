@@ -1,16 +1,59 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+//=============================================================================
+// LIMINAL ESP32 FIRMWARE CONFIGURATION
+//=============================================================================
+// 
+// SECURITY NOTICE: This file may contain sensitive information.
+// 
+// For development setup:
+// 1. Copy config.h.template to config.h
+// 2. Edit the placeholder values below with your actual credentials
+// 3. This file is ignored by git to protect your credentials
+//
+// For production/CI builds, use environment variables instead of editing this file.
+//
+//=============================================================================
+
 // WiFi Configuration
-#define WIFI_SSID "YOUR_WIFI_SSID";       // Replace with your WiFi network name
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD";   // Replace with your WiFi password
+// Use environment variables if available, otherwise use fallback values
+#ifdef WIFI_SSID_ENV
+    #define WIFI_SSID WIFI_SSID_ENV
+#else
+    #define WIFI_SSID "YOUR_WIFI_SSID"        // Replace with your WiFi network name
+#endif
+
+#ifdef WIFI_PASSWORD_ENV
+    #define WIFI_PASSWORD WIFI_PASSWORD_ENV
+#else
+    #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"    // Replace with your WiFi password  
+#endif
+
 #define WIFI_TIMEOUT_MS 30000
 
-// MQTT broker settings - UPDATE THESE WITH YOUR BROKER
-#define MQTT_SERVER "192.168.1.100";    // Replace with your MQTT broker IP address
+// MQTT broker settings
+// Use environment variables if available, otherwise use fallback values
+#ifdef MQTT_SERVER_ENV
+    #define MQTT_SERVER MQTT_SERVER_ENV
+#else
+    #define MQTT_SERVER "192.168.1.100"       // Replace with your MQTT broker IP address
+#endif
+
 #define MQTT_PORT 1883
-#define MQTT_USER ""
-#define MQTT_PASSWORD ""
+
+#ifdef MQTT_USER_ENV
+    #define MQTT_USER MQTT_USER_ENV
+#else
+    #define MQTT_USER ""                      // Replace with your MQTT username (leave empty if not required)
+#endif
+
+#ifdef MQTT_PASSWORD_ENV
+    #define MQTT_PASSWORD MQTT_PASSWORD_ENV
+#else
+    #define MQTT_PASSWORD ""                  // Replace with your MQTT password (leave empty if not required)
+#endif
+
 #define MQTT_CLIENT_ID_PREFIX "liminal-esp32-"
 #define MQTT_TIMEOUT_MS 5000
 
