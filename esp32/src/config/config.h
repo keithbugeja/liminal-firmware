@@ -2,12 +2,12 @@
 #define CONFIG_H
 
 // WiFi Configuration
-#define WIFI_SSID "YOUR_WIFI_SSID"
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+#define WIFI_SSID "YOUR_WIFI_SSID";       // Replace with your WiFi network name
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD";   // Replace with your WiFi password
 #define WIFI_TIMEOUT_MS 30000
 
 // MQTT broker settings - UPDATE THESE WITH YOUR BROKER
-#define MQTT_SERVER "192.168.50.87"
+#define MQTT_SERVER "192.168.1.100";    // Replace with your MQTT broker IP address
 #define MQTT_PORT 1883
 #define MQTT_USER ""
 #define MQTT_PASSWORD ""
