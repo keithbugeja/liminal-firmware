@@ -7,13 +7,13 @@
 // 
 // IMPORTANT: This is a template file. To configure your ESP32:
 // 
-// 1. Copy this file to config.h:
-//    cp config.h.template config.h
-// 
-// 2. Edit config.h and replace the placeholder values below with your actual
-//    network and MQTT broker information
-// 
-// 3. Alternatively, set environment variables (see comments below)
+// 1. The main config.h file uses environment variables and safe defaults
+// 2. For local development, edit config.h directly with your credentials
+// 3. For production/CI, use environment variables instead
+// 4. This template shows the structure and available options
+//
+// NOTE: config.h contains safe placeholder values and supports environment
+// variables, so it's safe to keep in version control.
 //
 //=============================================================================
 

@@ -13,8 +13,9 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Configuration files with sensitive data
-esp32/src/config/config.h
+# Local configuration files (if you create config-local.h or similar)
+esp32/src/config/config-local.h
+esp32/src/config/config.local.h
 
 # Temporary files
 *.tmp

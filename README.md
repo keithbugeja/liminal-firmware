@@ -45,7 +45,7 @@ Located in the `esp32/` directory, this implementation supports:
 
 ## Getting Started
 
-> **🔒 Security Note**: This firmware requires WiFi and MQTT credentials. The configuration file `esp32/src/config/config.h` is excluded from version control to protect sensitive information. Use the provided template and environment variable options for secure configuration.
+> **🔒 Security Note**: This firmware requires WiFi and MQTT credentials. The configuration system supports both direct editing for development and environment variables for production/CI to keep sensitive data secure.
 
 ### Prerequisites
 
@@ -79,11 +79,8 @@ Located in the `esp32/` directory, this implementation supports:
    
    **Option A: Local Development Setup**
    ```bash
-   # Copy the configuration template
-   cd esp32/src/config
-   cp config.h.template config.h
-   
-   # Edit config.h and replace placeholder values:
+   # Edit the configuration file directly
+   # Replace placeholder values in esp32/src/config/config.h:
    # - WIFI_SSID: Replace "YOUR_WIFI_SSID" with your WiFi network name
    # - WIFI_PASSWORD: Replace "YOUR_WIFI_PASSWORD" with your WiFi password  
    # - MQTT_SERVER: Replace "192.168.1.100" with your MQTT broker IP
@@ -202,6 +199,35 @@ liminal-firmware/
 ### Debug Mode
 
 Enable verbose logging by modifying the serial output statements in `main.cpp`.
+
+## Security
+
+### Configuration Security
+
+The firmware uses a secure configuration system that supports:
+
+- **Development**: Edit `config.h` directly with safe placeholder defaults
+- **Production/CI**: Use environment variables to avoid exposing credentials
+- **Template**: `config.h.template` provides documentation and examples
+
+### Environment Variables
+
+For secure builds, set these environment variables:
+
+```bash
+export WIFI_SSID_ENV="YourNetwork"
+export WIFI_PASSWORD_ENV="YourPassword"
+export MQTT_SERVER_ENV="192.168.1.100"
+export MQTT_USER_ENV="username"        # Optional
+export MQTT_PASSWORD_ENV="password"    # Optional
+```
+
+### Best Practices
+
+- Never commit real credentials to version control
+- Use environment variables in CI/CD pipelines
+- The main `config.h` file uses safe defaults and is designed to be version-controlled
+- For additional security, you can create `config-local.h` files (which are gitignored)
 
 ## Contributing
 
