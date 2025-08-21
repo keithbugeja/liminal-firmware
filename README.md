@@ -232,35 +232,6 @@ liminal-firmware/
 
 Enable verbose logging by modifying the serial output statements in `main.cpp`.
 
-## Security
-
-### Configuration Security
-
-The firmware uses a secure configuration system that supports:
-
-- **Development**: Edit `config.h` directly with safe placeholder defaults
-- **Production/CI**: Use environment variables to avoid exposing credentials
-- **Template**: `config.h.template` provides documentation and examples
-
-### Environment Variables
-
-For secure builds, set these environment variables:
-
-```bash
-export WIFI_SSID_ENV="YourNetwork"
-export WIFI_PASSWORD_ENV="YourPassword"
-export MQTT_SERVER_ENV="192.168.1.100"
-export MQTT_USER_ENV="username"        # Optional
-export MQTT_PASSWORD_ENV="password"    # Optional
-```
-
-### Best Practices
-
-- Never commit real credentials to version control
-- Use environment variables in CI/CD pipelines
-- The main `config.h` file uses safe defaults and is designed to be version-controlled
-- For additional security, you can create `config-local.h` files (which are gitignored)
-
 ## Contributing
 
 1. Fork the repository
