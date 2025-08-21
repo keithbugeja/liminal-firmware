@@ -4,5 +4,6 @@
 .vscode/launch.json
 .vscode/ipch
 
-# Configuration files with sensitive data
-src/config/config.h
+# Local configuration files (if you create config-local.h or similar)
+src/config/config-local.h
+src/config/config.local.h
