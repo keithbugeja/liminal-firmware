@@ -5,311 +5,232 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
-// WiFi credentials - UPDATE THESE WITH YOUR NETWORK
-const char* ssid = "YOUR_WIFI_SSID";       // Replace with your WiFi network name
-const char* password = "YOUR_WIFI_PASSWORD";   // Replace with your WiFi password
+#include <memory>
 
-// MQTT broker settings - UPDATE THESE WITH YOUR BROKER
-const char* mqtt_server = "192.168.1.100";    // Replace with your MQTT broker IP address
-const int mqtt_port = 1883;                         // Default MQTT port (usually 1883)
-const char* mqtt_user = "";                         // MQTT username (leave empty "" if no authentication)
-const char* mqtt_pass = "";                         // MQTT password (leave empty "" if no authentication)  
-const char* mqtt_topic = "sensors/mpu6500/accelerometer";  // MQTT topic to publish to
+#include "config/config.h"
+#include "communication/wifi_manager.h"
+#include "communication/mqtt_client.h"
+#include "sensors/sensor_manager.h"
+#include "sensors/imu_sensor.h"
+#include "devices/device_manager.h"
+#include "devices/led_device.h"
+#include "utils/json_helper.h"
 
-WiFiClient espClient;
-PubSubClient client(espClient);
+WiFiManager wifiManager;
+MQTTClient mqttClient;
+SensorManager sensorManager;
+DeviceManager deviceManager;
 
-Adafruit_MPU6050 mpu6050;
+unsigned long lastSensorPublish = 0;
+unsigned long lastStatusReport = 0;
 
-// ESP32 default I2C pins
-#define SDA_PIN 21
-#define SCL_PIN 22
+void onMQTTMessage(const String& topic, const String& payload);
+void publishSensorData();
+void publishStatusReport();
+void setupSensors();
+void setupDevices();
 
-bool isMPU6050 = false;
-bool isMPU6500 = false;
+void setup() {
+  Serial.begin(SERIAL_BAUD_RATE);
+  while (!Serial) delay(10);
 
-// MPU6500 register addresses
-#define MPU6500_ADDR 0x68
-#define PWR_MGMT_1   0x6B
-#define ACCEL_XOUT_H 0x3B
-#define GYRO_XOUT_H  0x43
-
-// Function to read MPU6500 registers
-int16_t readMPU6500Register16(uint8_t reg) {
-  Wire.beginTransmission(MPU6500_ADDR);
-  Wire.write(reg);
-  Wire.endTransmission(false);
-  Wire.requestFrom(MPU6500_ADDR, 2);
+  Serial.println("=== Liminal ESP32 Firmware Starting ===");
+  Serial.printf("Device ID: %s\n", DEVICE_ID);
+  Serial.printf("Firmware Version: %s\n", FIRMWARE_VERSION);
   
-  if (Wire.available() == 2) {
-    int16_t value = Wire.read() << 8 | Wire.read();
-    return value;
-  }
-  return 0;
-}
-
-// WiFi connection function
-void setupWiFi() {
-  // Check if WiFi credentials are configured
-  if (strlen(ssid) == 0 || strcmp(ssid, "YOUR_WIFI_SSID") == 0) {
-    Serial.println("ERROR: WiFi SSID not configured!");
-    Serial.println("Please update the 'ssid' variable in main.cpp");
-    return;
-  }
+  // Test basic WiFi connection (bypass WiFiManager)
+  Serial.println("Testing basic WiFi connection...");
+  WiFi.mode(WIFI_STA);
+  delay(1000);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   
-  if (strlen(password) == 0 || strcmp(password, "YOUR_WIFI_PASSWORD") == 0) {
-    Serial.println("ERROR: WiFi password not configured!");
-    Serial.println("Please update the 'password' variable in main.cpp");
-    return;
-  }
-  
-  delay(10);
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-
-  WiFi.begin(ssid, password);
-
+  Serial.print("Connecting to WiFi");
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+  while (WiFi.status() != WL_CONNECTED && attempts < 120) { 
     delay(500);
     Serial.print(".");
     attempts++;
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
+    Serial.println();
+    Serial.println("WiFi connected!");
+    Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("");
-    Serial.println("Failed to connect to WiFi");
-    Serial.println("Check your WiFi credentials and network availability");
-  }
-}
-
-// MQTT reconnection function
-void reconnectMQTT() {
-  // Check if MQTT server is configured
-  if (strlen(mqtt_server) == 0 || strcmp(mqtt_server, "192.168.1.100") == 0) {
-    Serial.println("ERROR: MQTT server not configured!");
-    Serial.println("Please update the 'mqtt_server' variable in main.cpp");
-    return;
+    Serial.println();
+    Serial.println("WiFi connection failed!");
+    Serial.printf("Status: %d\n", WiFi.status());
   }
   
-  // Only try to connect if WiFi is connected
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi not connected, skipping MQTT connection");
-    return;
+  // Initialise WiFi Manager after basic test
+  if (!wifiManager.begin()) {
+    Serial.println("Failed to initialize WiFi manager");
   }
   
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    String clientId = "ESP32Client-";
-    clientId += String(random(0xffff), HEX);
-    
-    // Attempt to connect
-    bool connected;
-    if (strlen(mqtt_user) > 0) {
-      connected = client.connect(clientId.c_str(), mqtt_user, mqtt_pass);
-    } else {
-      connected = client.connect(clientId.c_str());
-    }
-    
-    if (connected) {
-      Serial.println("connected");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      delay(5000);
-    }
+  // Initialise MQTT
+  if (!mqttClient.begin()) {
+    Serial.println("Failed to initialize MQTT client");
   }
-}
-
-void setup() {
-  Serial.begin(115200);
-  while (!Serial)
-    delay(10);
-
-  Serial.println("IMU sensor test");
+  mqttClient.setCallback(onMQTTMessage);
   
-  // Initialise I2C with explicit pins
-  Wire.begin(SDA_PIN, SCL_PIN);
-  Serial.printf("I2C initialized on SDA=%d, SCL=%d\n", SDA_PIN, SCL_PIN);
+  // Setup sensors and devices
+  setupSensors();
+  setupDevices();
   
-  // Scan for I2C devices
-  Serial.println("Scanning for I2C devices...");
-  byte count = 0;
-  for (byte address = 1; address < 127; address++) {
-    Wire.beginTransmission(address);
-    if (Wire.endTransmission() == 0) {
-      Serial.printf("I2C device found at address 0x%02X\n", address);
-      count++;
-    }
+  // Initialise sensor and device managers
+  if (!sensorManager.begin()) {
+    Serial.println("Warning: Some sensors failed to initialize");
   }
-  Serial.printf("Found %d I2C device(s)\n", count);
-
-  // Read WHO_AM_I register to identify the sensor
-  Wire.beginTransmission(0x68);
-  Wire.write(0x75); // WHO_AM_I register
-  Wire.endTransmission(false);
-  Wire.requestFrom(0x68, 1);
   
-  if (Wire.available()) {
-    uint8_t whoami = Wire.read();
-    Serial.printf("WHO_AM_I register: 0x%02X\n", whoami);
-    
-    if (whoami == 0x68) {
-      Serial.println("Device identified as MPU6050!");
-      isMPU6050 = true;
-    } else if (whoami == 0x70) {
-      Serial.println("Device identified as MPU6500!");
-      isMPU6500 = true;
-    } else if (whoami == 0x71) {
-      Serial.println("Device identified as MPU9250!");
-      isMPU6500 = true; // Use same library for MPU6500/9250
-    } else {
-      Serial.printf("Unknown device with WHO_AM_I: 0x%02X\n", whoami);
-    }
-  } else {
-    Serial.println("Failed to read WHO_AM_I register");
+  if (!deviceManager.begin()) {
+    Serial.println("Warning: Some devices failed to initialize");
   }
-
-  // Initialise the appropriate sensor
-  if (isMPU6050) {
-    // Wake up the MPU6050 first
-    Serial.println("Initializing MPU6050...");
-    Wire.beginTransmission(0x68);
-    Wire.write(0x6B); // PWR_MGMT_1 register
-    Wire.write(0);    // Wake up the MPU6050
-    Wire.endTransmission(true);
-    delay(100);
-
-    if (!mpu6050.begin(0x68, &Wire)) {
-      Serial.println("Failed to initialize MPU6050");
-      while (1) delay(10);
-    }
-    Serial.println("MPU6050 initialized successfully!");
-    mpu6050.setAccelerometerRange(MPU6050_RANGE_8_G);
-    mpu6050.setGyroRange(MPU6050_RANGE_500_DEG);
-    mpu6050.setFilterBandwidth(MPU6050_BAND_21_HZ);
-    
-  } else if (isMPU6500) {
-    Serial.println("Initializing MPU6500 with raw I2C...");
-    
-    // Wake up the MPU6500
-    Wire.beginTransmission(MPU6500_ADDR);
-    Wire.write(PWR_MGMT_1);
-    Wire.write(0x00); // Wake up device
-    Wire.endTransmission(true);
-    delay(100);
-    
-    // Configure accelerometer (±8g)
-    Wire.beginTransmission(MPU6500_ADDR);
-    Wire.write(0x1C); // ACCEL_CONFIG register
-    Wire.write(0x10); // ±8g range
-    Wire.endTransmission(true);
-    
-    // Configure gyroscope (±500 deg/s)
-    Wire.beginTransmission(MPU6500_ADDR);
-    Wire.write(0x1B); // GYRO_CONFIG register
-    Wire.write(0x08); // ±500 deg/s range
-    Wire.endTransmission(true);
-    
-    Serial.println("MPU6500 initialised successfully!");
-  } else {
-    Serial.println("No supported IMU found!");
-    while (1) delay(10);
-  }
-
-  // Setup WiFi and MQTT
-  setupWiFi();
-  client.setServer(mqtt_server, mqtt_port);
   
-  Serial.println("Setup complete!");
-  delay(100);
+  Serial.println("=== Setup Complete ===");
+  Serial.println();
 }
 
 void loop() {
-  // Check WiFi connection
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi disconnected, reconnecting...");
-    setupWiFi();
-  }
-  
-  // Check MQTT connection only if WiFi is connected
-  if (WiFi.status() == WL_CONNECTED && !client.connected()) {
-    reconnectMQTT();
-  }
-  
-  if (client.connected()) {
-    client.loop();
-  }
-  
-  float ax, ay, az;
-  
-  if (isMPU6050) {
-    // Read MPU6050
-    sensors_event_t a, g, temp;
-    mpu6050.getEvent(&a, &g, &temp);
-
-    ax = a.acceleration.x;
-    ay = a.acceleration.y;
-    az = a.acceleration.z;
-    
-    Serial.print("Accel X: "); Serial.print(ax);
-    Serial.print(", Y: "); Serial.print(ay);
-    Serial.print(", Z: "); Serial.print(az);
-    Serial.println(" m/s²");
-    
-  } else if (isMPU6500) {
-    // Read MPU6500 raw values
-    int16_t accelX = readMPU6500Register16(ACCEL_XOUT_H);
-    int16_t accelY = readMPU6500Register16(ACCEL_XOUT_H + 2);
-    int16_t accelZ = readMPU6500Register16(ACCEL_XOUT_H + 4);
-    
-    // Convert to g (±8g range: 4096 LSB/g)
-    ax = accelX / 4096.0;
-    ay = accelY / 4096.0;
-    az = accelZ / 4096.0;
-    
-    Serial.print("Accel X: "); Serial.print(ax);
-    Serial.print(", Y: "); Serial.print(ay);
-    Serial.print(", Z: "); Serial.print(az);
-    Serial.println(" g");
-  } else {
-    Serial.println("No supported IMU detected, continuing without sensor data...");
-  }
-  
-  // Only publish MQTT if connected
-  if (client.connected()) {
-    // Create JSON payload for MQTT
-    DynamicJsonDocument doc(200);
-    doc["timestamp"] = millis();
-    doc["device_id"] = "ESP32-MPU6500";
-    doc["sensor_type"] = isMPU6050 ? "MPU6050" : (isMPU6500 ? "MPU6500" : "None");
-    
-    JsonObject accel = doc.createNestedObject("accelerometer");
-    accel["x"] = ax;
-    accel["y"] = ay;
-    accel["z"] = az;
-    accel["unit"] = isMPU6050 ? "m/s²" : "g";
-    
-    // Serialize JSON to string
-    String payload;
-    serializeJson(doc, payload);
-    
-    // Publish to MQTT
-    if (client.publish(mqtt_topic, payload.c_str())) {
-      Serial.println("MQTT message sent: " + payload);
-    } else {
-      Serial.println("Failed to send MQTT message");
+  // Handle WiFi connection (avoid rapid reconnection attempts)
+  static unsigned long lastWiFiAttempt = 0;
+  if (!wifiManager.isConnected()) {
+    if (millis() - lastWiFiAttempt > 30000) {
+      Serial.println("WiFi disconnected, attempting reconnection...");
+      wifiManager.connect();
+      lastWiFiAttempt = millis();
     }
-  } else {
-    Serial.println("MQTT not connected, skipping data publish");
   }
+  
+  // Handle MQTT connection
+  if (wifiManager.isConnected() && !mqttClient.isConnected()) {
+    mqttClient.connect();
+  }
+  
+  // Process MQTT messages
+  if (mqttClient.isConnected()) {
+    mqttClient.loop();
+  }
+  
+  // Update sensors and devices
+  sensorManager.update();
+  deviceManager.update();
+  
+  // Publish sensor data periodically
+  unsigned long now = millis();
+  if (now - lastSensorPublish >= SENSOR_READ_INTERVAL_MS) {
+    publishSensorData();
+    lastSensorPublish = now;
+  }
+  
+  // Publish status report periodically
+  if (now - lastStatusReport >= STATUS_REPORT_INTERVAL_MS) {
+    publishStatusReport();
+    lastStatusReport = now;
+  }
+  
+  delay(50); // Small delay to prevent excessive CPU usage
+}
 
-  delay(1000);
+void onMQTTMessage(const String& topic, const String& payload) {
+  Serial.printf("MQTT message received - Topic: %s, Payload: %s\n", topic.c_str(), payload.c_str());
+  
+  // Handle device commands
+  if (topic.startsWith(String(MQTT_TOPIC_COMMANDS))) {
+    if (deviceManager.handleCommand(topic, payload)) {
+      Serial.println("Device command executed successfully");
+    } else {
+      Serial.println("Failed to execute device command");
+    }
+  }
+  
+  // Handle system commands (future expansion)
+  // Could add commands like restart, status request, config updates, etc.
+}
+
+void publishSensorData() {
+  if (!mqttClient.isConnected()) {
+    return;
+  }
+  
+  // Get all sensor data and publish individually
+  for (auto it = sensorManager.sensors_begin(); it != sensorManager.sensors_end(); ++it) {
+    auto& sensor = *it;
+    if (sensor->isReady()) {
+      DynamicJsonDocument data = sensor->getDataAsJson();
+      if (!mqttClient.publishSensorData(sensor->getTypeString(), data)) {
+        Serial.printf("Failed to publish data for sensor: %s\n", sensor->getName().c_str());
+      }
+    }
+  }
+}
+
+void publishStatusReport() {
+  if (!mqttClient.isConnected()) {
+    return;
+  }
+  
+  // Create comprehensive status report
+  DynamicJsonDocument statusDoc(2048);
+  statusDoc["device_id"] = DEVICE_ID;
+  statusDoc["firmware_version"] = FIRMWARE_VERSION;
+  statusDoc["uptime"] = millis();
+  statusDoc["timestamp"] = millis();
+  
+  // WiFi status
+  JsonObject wifi = statusDoc.createNestedObject("wifi");
+  wifi["connected"] = wifiManager.isConnected();
+  wifi["ip"] = wifiManager.getLocalIP();
+  wifi["rssi"] = wifiManager.getSignalStrength();
+  
+  // MQTT status
+  JsonObject mqtt = statusDoc.createNestedObject("mqtt");
+  mqtt["connected"] = mqttClient.isConnected();
+  mqtt["client_id"] = mqttClient.getClientId();
+  
+  // Memory status
+  JsonObject memory = statusDoc.createNestedObject("memory");
+  memory["free_heap"] = ESP.getFreeHeap();
+  memory["total_heap"] = ESP.getHeapSize();
+  
+  // Sensor and device status
+  DynamicJsonDocument sensors = sensorManager.getStatusReport();
+  statusDoc["sensors"] = sensors;
+  
+  DynamicJsonDocument devices = deviceManager.getStatusReport();
+  statusDoc["devices"] = devices;
+  
+  mqttClient.publishStatus(statusDoc);
+}
+
+void setupSensors() {
+  Serial.println("Setting up sensors...");
+  
+  // Add IMU sensor
+  auto imuSensor = std::make_shared<IMUSensor>("main_imu");
+  if (sensorManager.addSensor(imuSensor)) {
+    Serial.println("IMU sensor added to sensor manager");
+  } else {
+    Serial.println("Failed to add IMU sensor to sensor manager");
+  }
+  
+  // Future sensors can be added here:
+  // e.g.: auto tempSensor = std::make_shared<TemperatureSensor>("temp_sensor");
+  // sensorManager.addSensor(tempSensor);
+}
+
+void setupDevices() {
+  Serial.println("Setting up devices...");
+  
+  // Add status LED (built-in LED)
+  auto statusLED = std::make_shared<LEDDevice>("status_led", STATUS_LED_PIN, false);
+  if (deviceManager.addDevice(statusLED)) {
+    Serial.println("Status LED added to device manager");
+  } else {
+    Serial.println("Failed to add status LED to device manager");
+  }
+  
+  // Future devices can be added here:
+  // e.g.: auto relay = std::make_shared<RelayDevice>("main_relay", RELAY_PIN);
+  // deviceManager.addDevice(relay);
 }
