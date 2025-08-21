@@ -79,6 +79,8 @@ Located in the `esp32/` directory, this implementation supports:
    
    **Option A: Local Development Setup**
    ```bash
+   # For team development or clean setup:
+   cp src/config/config.h.template src/config/config.h
    # Edit the configuration file directly
    # Replace placeholder values in esp32/src/config/config.h:
    # - WIFI_SSID: Replace "YOUR_WIFI_SSID" with your WiFi network name
@@ -86,6 +88,7 @@ Located in the `esp32/` directory, this implementation supports:
    # - MQTT_SERVER: Replace "192.168.1.100" with your MQTT broker IP
    # - MQTT_USER: Add your MQTT username (optional)
    # - MQTT_PASSWORD: Add your MQTT password (optional)
+   # Note: config.h is gitignored to protect your credentials
    ```
    
    **Option B: Environment Variables (CI/Production)**
