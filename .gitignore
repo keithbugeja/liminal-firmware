@@ -1,0 +1,21 @@
+# Build artifacts
+.pio
+build/
+dist/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Configuration files with sensitive data
+esp32/src/config/config.h
+
+# Temporary files
+*.tmp
+*.log

@@ -45,6 +45,8 @@ Located in the `esp32/` directory, this implementation supports:
 
 ## Getting Started
 
+> **🔒 Security Note**: This firmware requires WiFi and MQTT credentials. The configuration file `esp32/src/config/config.h` is excluded from version control to protect sensitive information. Use the provided template and environment variable options for secure configuration.
+
 ### Prerequisites
 
 - [PlatformIO](https://platformio.org/) installed
@@ -75,14 +77,28 @@ Located in the `esp32/` directory, this implementation supports:
 
 2. **Configure WiFi and MQTT settings**:
    
-   Edit `esp32/src/main.cpp` and update these variables:
-   ```cpp
-   const char* ssid = "YourWiFiNetwork";
-   const char* password = "YourWiFiPassword";
-   const char* mqtt_server = "your.mqtt.broker.ip";
-   const char* mqtt_user = "mqtt_username";      // Optional
-   const char* mqtt_pass = "mqtt_password";      // Optional
-   const char* mqtt_topic = "sensors/your/topic";
+   **Option A: Local Development Setup**
+   ```bash
+   # Copy the configuration template
+   cd esp32/src/config
+   cp config.h.template config.h
+   
+   # Edit config.h and replace placeholder values:
+   # - WIFI_SSID: Replace "YOUR_WIFI_SSID" with your WiFi network name
+   # - WIFI_PASSWORD: Replace "YOUR_WIFI_PASSWORD" with your WiFi password  
+   # - MQTT_SERVER: Replace "192.168.1.100" with your MQTT broker IP
+   # - MQTT_USER: Add your MQTT username (optional)
+   # - MQTT_PASSWORD: Add your MQTT password (optional)
+   ```
+   
+   **Option B: Environment Variables (CI/Production)**
+   ```bash
+   # Set environment variables before building
+   export WIFI_SSID_ENV="YourWiFiNetwork"
+   export WIFI_PASSWORD_ENV="YourWiFiPassword"
+   export MQTT_SERVER_ENV="your.mqtt.broker.ip"
+   export MQTT_USER_ENV="mqtt_username"        # Optional
+   export MQTT_PASSWORD_ENV="mqtt_password"    # Optional
    ```
 
 3. **Build and upload**:
