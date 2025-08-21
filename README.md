@@ -158,7 +158,7 @@ type = "mqtt_sub"
 output = "raw_acceleration_data"
 concurrency = { type = "thread" }
 channel = { type = "broadcast", capacity = 256 }
-parameters = { broker_url = "mqtt://localhost:1883", topics = ["sensors/mpu6500/accelerometer"], client_id = "test_mqtt_input", qos = 0, clean_session = true, username = "", password = "" }
+parameters = { broker_url = "mqtt://localhost:1883", topics = ["liminal/sensors/esp32-001/imu"], client_id = "test_mqtt_input", qos = 0, clean_session = true, username = "", password = "" }
 
 # Outputs: External data sinks
 [outputs.log_output]
@@ -171,15 +171,34 @@ inputs = ["raw_acceleration_data"]
 ```
 liminal-firmware/
 ├── README.md
-├── esp32/                          # ESP32 firmware
+├── esp32/                          # ESP32 firmware sub-project
+│   ├── .gitignore                  # ESP32-specific gitignore
 │   ├── platformio.ini              # PlatformIO configuration
+│   ├── compile_commands.json       # Language server support
 │   ├── src/
-│   │   └── main.cpp                # Main firmware code
-│   ├── include/                    # Header files
+│   │   ├── main.cpp                # Main firmware entry point
+│   │   ├── config/
+│   │   │   ├── config.h            # Configuration with credentials (gitignored)
+│   │   │   └── config.h.template   # Safe configuration template
+│   │   ├── communication/
+│   │   │   ├── wifi_manager.h/.cpp # WiFi connection management
+│   │   │   └── mqtt_client.h/.cpp  # MQTT client implementation
+│   │   ├── sensors/
+│   │   │   ├── sensor_base.h       # Base sensor interface
+│   │   │   ├── sensor_manager.h/.cpp # Sensor discovery and management
+│   │   │   └── imu_sensor.h/.cpp   # IMU sensor implementation
+│   │   ├── devices/
+│   │   │   ├── device_base.h       # Base device interface
+│   │   │   ├── device_manager.h/.cpp # Device lifecycle management
+│   │   │   └── led_device.h/.cpp   # Status LED control
+│   │   └── utils/
+│   │       └── json_helper.h/.cpp  # JSON serialization utilities
+│   ├── include/                    # Public header files
 │   ├── lib/                        # Custom libraries
 │   ├── test/                       # Unit tests
-│   └── docs/                       # Hardware documentation
-└── shared/                         # Shared utilities
+│   ├── docs/                       # Hardware documentation & pinouts
+│   └── .vscode/                    # VS Code configuration
+└── shared/                         # Shared utilities (future)
     └── utils/                      # Common utility functions
 ```
 
